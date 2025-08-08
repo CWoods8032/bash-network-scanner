@@ -33,8 +33,30 @@ write_ports_section() {
 write_vulns_section() {
   echo "Potential Vulnerabilities Identified:"
   echo "-------------------------------------"
-  echo "CVE-2017-5638 - Outdated Web Server"
-  echo "CVE-2021- 32496 - SSH Weak Ciphers"
+
+  # NSE Results
+  echo "--- NSE Script Output ---"
+  echo "$SCAN_RESULTS" | grep -A 5 "VULNERABLE"
+
+  echo ""
+  echo "--- Analyzing Service Versions ---"
+  echo "$SCAN_RESULTS" | while read -r line; do
+    case "$line" in
+      *"vsftpd 2.3.4"*)
+        echo "[!!] VULNERABILITY DETECTED: vsftpd 2.3.4 has a known backdoor (CVE-2011-2523)."
+        ;;
+      *"Apache httpd 2.4.49"*)
+        echo "[!!] VULNERABILITY DETECTED: Apache 2.4.49 is vulnerable to path traversal (CVE-2021-41773)."
+        ;;
+      *"OpenSSH 7.2p2"*)
+        echo "[!!] VULNERABILITY DETECTED: OpenSSH 7.2p2 has known vulnerabilities (CVE-2016-0777)."
+        ;;
+      *"Exim smtpd 4.87"*)
+        echo "[!!] VULNERABILITY DETECTED: Exim 4.87 is vulnerable to remote code execution (CVE-2016-1531)."
+        ;;
+    esac
+  done
+
   echo ""
 }
 
@@ -62,15 +84,17 @@ main() {
   local target="$1"
   local REPORT_FILE="report.txt"
 
-  # Overwrite the firewall
-  write_header "$target" > "$REPORT_FILE"
- 
+  echo "[*] Running enhanced Nmap scan with vulnerabilty scripts..."
+  SCAN_RESULTS=$(nmap -sV --script vuln "$target")
 
-  # Append
+  # Overwrite
+  write_header "$target" > "$REPORT_FILE"
   write_ports_section "$target" >> "$REPORT_FILE"
   write_vulns_section >> "$REPORT_FILE"
   write_recs_section >> "$REPORT_FILE"
   write_footer >> "$REPORT_FILE"
+
+  echo "[*] Scan complete. Report saved to $REPORT_FILE"
 }
 
 main "$@"
